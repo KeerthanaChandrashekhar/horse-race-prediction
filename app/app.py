@@ -138,6 +138,7 @@ html, body, [data-testid="stApp"] {
 .horse-row {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
     padding: 12px 16px;
     background: var(--card);
@@ -167,8 +168,9 @@ html, body, [data-testid="stApp"] {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.85rem;
     color: var(--teal);
-    width: 58px;
-    text-align: right;
+    min-width: 50px;
+    text-align: left;
+    margin-left: 8px;
 }
 .prob-bar-wrap {
     width: 140px;
@@ -357,6 +359,8 @@ st.markdown("""
 <hr style='border:none; border-top:1px solid #252a35; margin: 16px 0 24px;'>
 """, unsafe_allow_html=True)
 
+st.markdown("### 🎯 AI-Powered Decision Support System for Horse Race Prediction under Uncertainty")
+
 
 # ── no model ───────────────────────────────────────────────────────────────────
 if artifact is None:
@@ -419,12 +423,10 @@ def predict_proba_safe(df_rows):
 # ── race selector ──────────────────────────────────────────────────────────────
 tabs = st.tabs([
     "🏁 Demo Predictor",
-    "🚧 Real Race Prediction (Coming Soon)",
-    "📊 Dataset Explorer",
-    "🔬 Feature Importance"
+    "🏇 Race Simulator"
 ])
 
-tab1, tab2, tab3, tab4 = tabs
+tab1, tab2 = tabs
 
 with tabs[0]:
     if df_sample.empty:
@@ -543,106 +545,150 @@ with tabs[0]:
         show_cols = ["horse_display", "win_prob"] + [c for c in ["win", "horse_win_rate", "jockey_win_rate", "race_size"] if c in df_race.columns]
         st.dataframe(df_race[show_cols].style.format({"win_prob": "{:.3f}", "horse_win_rate": "{:.3f}", "jockey_win_rate": "{:.3f}"}), use_container_width=True)
 
-
 with tabs[1]:
-    st.info("Real-time race prediction will be enabled with live or external dataset integration.")
-    st.markdown("<div class='section-header'>DATASET OVERVIEW</div>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="
+        background: #181c24;
+        border: 1px solid #252a35;
+        border-radius: 12px;
+        padding: 18px 22px;
+        margin-bottom: 16px;
+    ">
+        <div style="color:#f0b429; font-family:'Bebas Neue'; font-size:1.1rem; letter-spacing:.08em;">
+            SYSTEM OVERVIEW
+        </div>
+        <div style="color:#e8eaf0; font-size:0.85rem; margin-top:8px; line-height:1.6;">
+            • Uses <b>odds + performance features</b> to predict win probability<br>
+            • Considers <b>horse ability, jockey skill, and experience</b><br>
+            • Provides <b>decision insights</b>: Best Bet, Value Bet, Risky Horse
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("<div class='section-header'>CUSTOM RACE INPUT</div>", unsafe_allow_html=True)
 
-    if df_sample.empty:
-        st.warning("No sample data available.")
-    else:
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            st.markdown(f"<div class='metric-card'><div class='value'>{len(df_sample):,}</div><div class='label'>Sample Rows</div></div>", unsafe_allow_html=True)
-        with c2:
-            n_races = df_sample[race_col].nunique() if race_col and race_col in df_sample.columns else "—"
-            st.markdown(f"<div class='metric-card'><div class='value'>{n_races}</div><div class='label'>Races</div></div>", unsafe_allow_html=True)
-        with c3:
-            n_horses = df_sample[horse_col].nunique() if horse_col and horse_col in df_sample.columns else "—"
-            st.markdown(f"<div class='metric-card'><div class='value'>{n_horses}</div><div class='label'>Horses</div></div>", unsafe_allow_html=True)
-        with c4:
-            wr = df_sample["win"].mean() if "win" in df_sample.columns else 0
-            st.markdown(f"<div class='metric-card'><div class='value'>{wr*100:.1f}%</div><div class='label'>Win Rate</div></div>", unsafe_allow_html=True)
+    num_horses = st.number_input("Number of Horses", 2, 15, 5)
 
-        st.markdown("<div class='section-header'>WIN RATE BY HORSE (TOP 20)</div>", unsafe_allow_html=True)
-        if horse_col and horse_col in df_sample.columns and "win" in df_sample.columns:
-            hr = (df_sample.groupby(horse_col)["win"]
-                  .agg(["mean", "count"])
-                  .query("count >= 5")
-                  .sort_values("mean", ascending=False)
-                  .head(20)
-                  .reset_index())
-            hr.columns = [horse_col, "win_rate", "races"]
-            fig2 = px.bar(
-                hr, x=horse_col, y="win_rate",
-                color="win_rate",
-                color_continuous_scale=["#252a35", "#3d8bff", "#00d4aa", "#f0b429"],
-                labels={"win_rate": "Win Rate"},
-            )
-            fig2.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=0, r=0, t=10, b=0),
-                xaxis=dict(tickangle=-40, tickfont=dict(color="#7a8099", size=10)),
-                yaxis=dict(gridcolor="#252a35", tickformat=".0%", tickfont=dict(color="#7a8099")),
-                coloraxis_showscale=False, height=320,
-            )
-            st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False})
+    horses_data = []
 
+    for i in range(num_horses):
+        st.markdown(f"### Horse {i+1}")
 
-with tabs[2]:
-    st.markdown("<div class='section-header'>FEATURE IMPORTANCE</div>", unsafe_allow_html=True)
+        col1, col2, col3, col4 = st.columns(4)
 
-    importances = None
+        with col1:
+            name = st.text_input(f"Name", key=f"name_{i}")
 
-    try:
-        # Case 1: model itself has feature importance
-        if hasattr(model, "feature_importances_"):
-            importances = model.feature_importances_
+        with col2:
+            odds = st.number_input(f"Odds", min_value=1.01, value=2.0, key=f"odds_{i}")
 
-        # Case 2: calibrated model (your case)
-        elif hasattr(model, "estimator"):
-            base = model.estimator
+        with col3:
+            horse_wr = st.slider(f"Horse Win Rate", 0.0, 1.0, 0.1, key=f"hwr_{i}")
 
-            if hasattr(base, "get_booster"):
-                try:
-                    _ = base.get_booster()  # check if fitted
-                    importances = base.feature_importances_
-                except:
-                    importances = None
+        with col4:
+            jockey_wr = st.slider(f"Jockey Win Rate", 0.0, 1.0, 0.1, key=f"jwr_{i}")
 
-        if importances is None:
-            raise Exception()
+        exp = st.number_input(f"Experience", min_value=1, value=5, key=f"exp_{i}")
 
-    except:
-        st.warning("⚠️ Feature importance not available for this model")
-        st.stop()
+        horses_data.append({
+            "horse": name if name else f"Horse_{i+1}",
+            "odds": odds,
+            "horse_win_rate": horse_wr,
+            "jockey_win_rate": jockey_wr,
+            "experience": exp
+        })
 
-    # display
-    fi_df = pd.DataFrame({
-        "feature": feature_cols,
-        "importance": importances
-    }).sort_values(by="importance", ascending=False).head(15)
+    if st.button("Predict Custom Race"):
 
-    st.dataframe(fi_df, use_container_width=True)
+        df_custom = pd.DataFrame(horses_data)
 
-    fig3 = go.Figure(go.Bar(
-        x=fi_df["importance"],
-        y=fi_df["feature"],
-        orientation="h",
-        marker=dict(
-            color=fi_df["importance"],
-            colorscale=[[0, "#252a35"], [0.5, "#3d8bff"], [1.0, "#f0b429"]],
-            line=dict(width=0),
-        ),
-    ))
-    fig3.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=0, r=20, t=10, b=10),
-        xaxis=dict(gridcolor="#252a35", tickfont=dict(color="#7a8099")),
-        yaxis=dict(tickfont=dict(color="#e8eaf0", size=11)),
-        height=520,
-    )
-    st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False})
+        # --- Feature Engineering ---
+        df_custom["log_odds"] = np.log(df_custom["odds"])
+        df_custom["inv_odds"] = 1 / df_custom["odds"]
+        df_custom["avg_last5_pos"] = 5
+        df_custom["race_size"] = len(df_custom)
 
-    top5 = fi_df.tail(5)["feature"].tolist()[::-1]
-    st.markdown(f"**Top 5 predictive features:** `{'` · `'.join(top5)}`")
+        # --- Ensure feature match ---
+        for col in feature_cols:
+            if col not in df_custom.columns:
+                df_custom[col] = 0
+
+        # --- Equal odds fix ---
+        # Check if ALL meaningful inputs are same
+        if (
+            df_custom["odds"].nunique() == 1 and
+            df_custom["horse_win_rate"].nunique() == 1 and
+            df_custom["jockey_win_rate"].nunique() == 1 and
+            df_custom["experience"].nunique() == 1
+        ):
+            probs = np.ones(len(df_custom)) / len(df_custom)
+        else:
+            probs = predict_proba_safe(df_custom)
+            probs = probs / probs.sum()
+
+        df_custom["win_prob"] = probs
+
+        df_custom = df_custom.sort_values("win_prob", ascending=False).reset_index(drop=True)
+
+        winner = df_custom.iloc[0]
+
+        st.success(f"🏆 Predicted Winner: {winner['horse']} ({winner['win_prob']*100:.2f}%)")
+        
+        st.warning("""
+        ⚠️ Predictions are probabilistic, not guaranteed outcomes.
+        This system is designed for decision support under uncertainty.
+        """)
+        
+        # =========================
+        # 🎯 Decision Intelligence Layer
+        # =========================
+
+        st.markdown("### 🧠 Decision Insights")
+
+        # 🟢 Best Bet (highest probability)
+        best_bet = df_custom.iloc[0]
+
+        # 🟡 Value Bet (high odds + decent probability)
+        df_custom["value_score"] = df_custom["win_prob"] * df_custom["odds"]
+        value_bet = df_custom.sort_values("value_score", ascending=False).iloc[0]
+
+        # 🔴 Risky Horse (low probability + high odds)
+        risky = df_custom.sort_values(by=["win_prob", "odds"], ascending=[True, False]).iloc[0]
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.markdown(f"""
+            <div class='metric-card'>
+                <div class='value'>🟢 {best_bet['horse']}</div>
+                <div class='label'>Best Bet ({best_bet['win_prob']*100:.1f}%)</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col2:
+            st.markdown(f"""
+            <div class='metric-card'>
+                <div class='value'>🟡 {value_bet['horse']}</div>
+                <div class='label'>Value Bet (Odds {value_bet['odds']})</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col3:
+            st.markdown(f"""
+            <div class='metric-card'>
+                <div class='value'>🔴 {risky['horse']}</div>
+                <div class='label'>Risky (Low Prob)</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- Chart ---
+        fig = make_plotly_chart(
+            list(df_custom["horse"])[::-1],
+            list(df_custom["win_prob"])[::-1]
+        )
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+        # --- Table ---
+        st.dataframe(
+            df_custom[["horse", "odds", "horse_win_rate", "jockey_win_rate", "experience", "win_prob"]],
+            use_container_width=True
+        )
