@@ -69,6 +69,7 @@ html, body, [data-testid="stApp"] {
     border-radius: var(--radius);
     padding: 20px 24px;
     text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
 .metric-card .value {
     font-family: 'Bebas Neue', sans-serif;
@@ -146,6 +147,7 @@ html, body, [data-testid="stApp"] {
     border-radius: 8px;
     margin-bottom: 8px;
     transition: border-color .2s;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
 }
 .horse-row.top {
     border-color: var(--gold);
@@ -314,36 +316,14 @@ with st.sidebar:
     st.markdown("""
     <div style='text-align:center; padding: 16px 0 24px;'>
         <div style='font-size:2.4rem'>🏇</div>
-        <div style='font-family:"Bebas Neue",sans-serif; font-size:1.2rem; color:#f0b429; letter-spacing:.1em;'>RACE INTEL</div>
-        <div style='font-size:0.7rem; color:#7a8099; letter-spacing:.15em;'>PREDICTION ENGINE</div>
+        <div style='font-family:"Bebas Neue"; font-size:1.2rem; color:#f0b429;'>RACE INTEL</div>
+        <div style='font-size:0.7rem; color:#7a8099;'>Prediction Engine</div>
     </div>
     """, unsafe_allow_html=True)
-
-    model_path = st.text_input("Model path", value="../model.pkl")
-    artifact = load_artifact(model_path)
-    
-    if artifact:
-        st.write("Model type:", type(artifact["model"]))
 
     st.markdown("---")
 
-    if artifact:
-        st.markdown(f"""
-        <div class='metric-card'>
-            <div class='value'>{artifact.get('accuracy',0)*100:.1f}%</div>
-            <div class='label'>Model Accuracy</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    top_n = st.slider("Horses to display", 3, 20, 8)
-    show_raw = st.checkbox("Show raw data table", False)
-
-    st.markdown("""
-    <div style='color:#7a8099; font-size:0.72rem; padding-top:16px; line-height:1.6'>
-    Place your Kaggle CSV in <code>data/</code> then run:<br>
-    <code>python src/model.py</code><br>to train the model.
-    </div>
-    """, unsafe_allow_html=True)
+    top_n = st.slider("Top Horses", 3, 15, 8)
 
 
 # ── title ──────────────────────────────────────────────────────────────────────
@@ -361,6 +341,8 @@ st.markdown("""
 
 st.markdown("### 🎯 AI-Powered Decision Support System for Horse Race Prediction under Uncertainty")
 
+model_path = "../model.pkl"
+artifact = load_artifact(model_path)
 
 # ── no model ───────────────────────────────────────────────────────────────────
 if artifact is None:
@@ -469,8 +451,6 @@ with tabs[0]:
 
     if total_prob > 0:
         df_race["win_prob"] = df_race["win_prob"] / total_prob
-    
-    st.write("DEBUG probs:", df_race["win_prob"].describe())
 
     # Horse display name
     if horse_col and horse_col in df_race.columns:
@@ -539,7 +519,8 @@ with tabs[0]:
         sc_fig = make_scatter_chart(df_race)
         if sc_fig:
             st.plotly_chart(sc_fig, use_container_width=True, config={"displayModeBar": False})
-
+    show_raw = False  
+    
     if show_raw:
         st.markdown("<div class='section-header'>RAW DATA</div>", unsafe_allow_html=True)
         show_cols = ["horse_display", "win_prob"] + [c for c in ["win", "horse_win_rate", "jockey_win_rate", "race_size"] if c in df_race.columns]
