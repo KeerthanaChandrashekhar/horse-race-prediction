@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# 🔥 DATA (IMPORTANT)
+data/
+*.csv
+
+# model files (optional, keep if large)
+# model.pkl
